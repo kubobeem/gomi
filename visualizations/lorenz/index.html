@@ -47,36 +47,114 @@ button:hover { border-color: var(--accent); }
 button.active { background: var(--accent); border-color: transparent; color: #fff; }
 label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
 input[type=range] { width: 80px; accent-color: var(--accent); }
-.info { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.info { color: var(--text2); font-size: 12px; }
 main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
 canvas {
   background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
-  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12); cursor: grab; touch-action: none;
 }
+canvas:active { cursor: grabbing; }
 </style>
 </head>
 <body>
 <header>
   <div class="brand"><a href="../../">Back</a><h1>Lorenz Attractor</h1></div>
-  <div class="controls"><button id="play" class="active">Pause</button><button id="reset">Reset</button><label>ρ <input type="range" id="rho" min="10" max="40" value="28" step="0.5"></label></div>
+  <div class="controls">
+    <button id="play" class="active">Pause</button>
+    <button id="reset">Reset</button>
+    <label>ρ <input type="range" id="rho" min="10" max="40" value="28" step="0.5"></label>
+    <span class="info">Drag rotate · Wheel zoom</span>
+  </div>
 </header>
 <main><canvas id="c" width="800" height="600"></canvas></main>
 <script>
-const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
-let x=0.1,y=0,z=0,rho=28,running=true,ang=0;
-const sigma=10,beta=8/3,pts=[],MAX=8000;
-function step(dt){const dx=sigma*(y-x),dy=x*(rho-z)-y,dz=x*y-beta*z;x+=dx*dt;y+=dy*dt;z+=dz*dt;pts.push({x,y,z});if(pts.length>MAX)pts.shift();}
-function project(p){const s=8,cos=Math.cos(ang),sin=Math.sin(ang);const xr=p.x*cos-p.z*sin,zr=p.x*sin+p.z*cos;return{x:canvas.width/2+xr*s,y:canvas.height/2-(p.y-25)*s*0.85+zr*0.15};}
-function draw(){ctx.fillStyle="rgba(10,10,12,0.08)";ctx.fillRect(0,0,800,600);if(pts.length<2)return;ctx.lineWidth=1.2;
-  for(let i=1;i<pts.length;i++){const a=project(pts[i-1]),b=project(pts[i]),t=i/pts.length;
-    ctx.strokeStyle=`hsla(${200+t*80},70%,${40+t*25}%,${0.25+t*0.55})`;
-    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
-  ang+=0.003;}
-function loop(){if(running)for(let i=0;i<12;i++)step(0.005);draw();requestAnimationFrame(loop);}
-document.getElementById("play").onclick=function(){running=!running;this.textContent=running?"Pause":"Play";this.classList.toggle("active",running);};
-document.getElementById("reset").onclick=()=>{x=0.1;y=0;z=0;pts.length=0;ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);};
-document.getElementById("rho").oninput=e=>{rho=+e.target.value;};
-ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);requestAnimationFrame(loop);
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let x = 0.1, y = 0, z = 0, rho = 28, running = true;
+let angY = 0.4, angX = 0.3, scale = 9;
+const sigma = 10, beta = 8 / 3, pts = [], MAX = 10000;
+let dragging = false, lastX = 0, lastY = 0;
+
+function step(dt) {
+  const dx = sigma * (y - x), dy = x * (rho - z) - y, dz = x * y - beta * z;
+  x += dx * dt; y += dy * dt; z += dz * dt;
+  pts.push({ x, y, z });
+  if (pts.length > MAX) pts.shift();
+}
+
+function project(p) {
+  let px = p.x, py = p.y - 25, pz = p.z;
+  const cy = Math.cos(angY), sy = Math.sin(angY);
+  let xr = px * cy - pz * sy;
+  let zr = px * sy + pz * cy;
+  const cx = Math.cos(angX), sx = Math.sin(angX);
+  let yr = py * cx - zr * sx;
+  zr = py * sx + zr * cx;
+  return {
+    x: canvas.width / 2 + xr * scale,
+    y: canvas.height / 2 - yr * scale
+  };
+}
+
+function draw() {
+  ctx.fillStyle = "rgba(10,10,12,0.12)";
+  ctx.fillRect(0, 0, 800, 600);
+  if (pts.length < 2) return;
+  ctx.lineWidth = 1.2;
+  for (let i = 1; i < pts.length; i++) {
+    const a = project(pts[i - 1]), b = project(pts[i]), t = i / pts.length;
+    ctx.strokeStyle = `hsla(${200 + t * 80},70%,${40 + t * 25}%,${0.2 + t * 0.55})`;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+}
+
+function loop() {
+  if (running) for (let i = 0; i < 14; i++) step(0.005);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+canvas.addEventListener("pointerdown", e => {
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  angY += (e.clientX - lastX) * 0.008;
+  angX += (e.clientY - lastY) * 0.008;
+  angX = Math.max(-1.4, Math.min(1.4, angX));
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+canvas.addEventListener("pointerup", () => { dragging = false; });
+canvas.addEventListener("pointercancel", () => { dragging = false; });
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  scale *= e.deltaY > 0 ? 0.9 : 1.12;
+  scale = Math.max(2, Math.min(40, scale));
+}, { passive: false });
+
+document.getElementById("play").onclick = function () {
+  running = !running;
+  this.textContent = running ? "Pause" : "Play";
+  this.classList.toggle("active", running);
+};
+document.getElementById("reset").onclick = () => {
+  x = 0.1; y = 0; z = 0;
+  pts.length = 0;
+  ctx.fillStyle = "#0a0a0c";
+  ctx.fillRect(0, 0, 800, 600);
+};
+document.getElementById("rho").oninput = e => { rho = +e.target.value; };
+
+ctx.fillStyle = "#0a0a0c";
+ctx.fillRect(0, 0, 800, 600);
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>

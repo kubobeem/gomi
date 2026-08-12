@@ -44,31 +44,124 @@ button {
   font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
 }
 button:hover { border-color: var(--accent); }
-button.active { background: var(--accent); border-color: transparent; color: #fff; }
-label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
-input[type=range] { width: 80px; accent-color: var(--accent); }
 .info { color: var(--text2); font-size: 12px; }
 main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
 canvas {
   background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
-  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12); cursor: grab; touch-action: none;
 }
+canvas:active { cursor: grabbing; }
 </style>
 </head>
 <body>
 <header>
   <div class="brand"><a href="../../">Back</a><h1>Logistic Map</h1></div>
-  <div class="controls"><span class="info">Bifurcation diagram · r = 2.5 → 4.0</span></div>
+  <div class="controls">
+    <button id="reset">Reset</button>
+    <span class="info" id="info">Wheel zoom · Drag pan · Double-click zoom</span>
+  </div>
 </header>
 <main><canvas id="c" width="900" height="500"></canvas></main>
 <script>
-const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
-const w=canvas.width,h=canvas.height;ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,w,h);
-const rMin=2.5,rMax=4.0,skip=200,plot=300;ctx.fillStyle="rgba(10,132,255,0.35)";
-for(let px=0;px<w;px++){const r=rMin+(rMax-rMin)*px/w;let x=0.5;for(let i=0;i<skip;i++)x=r*x*(1-x);
-  for(let i=0;i<plot;i++){x=r*x*(1-x);ctx.fillRect(px,h-x*h,1,1);}}
-ctx.fillStyle="#98989d";ctx.font="12px -apple-system,sans-serif";
-ctx.fillText("r = 2.5",10,h-10);ctx.fillText("r = 4.0",w-50,h-10);
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const w = canvas.width, h = canvas.height;
+let rMin = 2.5, rMax = 4.0, xMin = 0, xMax = 1;
+let dragging = false, lastX = 0, lastY = 0;
+let renderQueued = false;
+
+function render() {
+  renderQueued = false;
+  ctx.fillStyle = "#0a0a0c";
+  ctx.fillRect(0, 0, w, h);
+  const skip = 150, plot = Math.min(400, Math.floor(80 + 200 * (4 / (rMax - rMin))));
+  ctx.fillStyle = "rgba(10,132,255,0.4)";
+  for (let px = 0; px < w; px++) {
+    const r = rMin + (rMax - rMin) * px / w;
+    let x = 0.5;
+    for (let i = 0; i < skip; i++) x = r * x * (1 - x);
+    for (let i = 0; i < plot; i++) {
+      x = r * x * (1 - x);
+      if (x >= xMin && x <= xMax) {
+        const py = h - ((x - xMin) / (xMax - xMin)) * h;
+        ctx.fillRect(px, py, 1, 1);
+      }
+    }
+  }
+  ctx.fillStyle = "#98989d";
+  ctx.font = "12px -apple-system,sans-serif";
+  ctx.fillText(`r ${rMin.toFixed(4)} → ${rMax.toFixed(4)}`, 10, h - 10);
+  document.getElementById("info").textContent =
+    `r [${rMin.toFixed(3)}, ${rMax.toFixed(3)}] · Wheel / Drag / Double-click`;
+}
+
+function queueRender() {
+  if (!renderQueued) {
+    renderQueued = true;
+    requestAnimationFrame(render);
+  }
+}
+
+function screenToWorld(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const px = (clientX - rect.left) / rect.width;
+  const py = (clientY - rect.top) / rect.height;
+  return {
+    r: rMin + (rMax - rMin) * px,
+    x: xMax - (xMax - xMin) * py
+  };
+}
+
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const p = screenToWorld(e.clientX, e.clientY);
+  const factor = e.deltaY > 0 ? 1.4 : 1 / 1.4;
+  rMin = p.r - (p.r - rMin) * factor;
+  rMax = p.r + (rMax - p.r) * factor;
+  xMin = p.x - (p.x - xMin) * factor;
+  xMax = p.x + (xMax - p.x) * factor;
+  rMin = Math.max(0, rMin);
+  rMax = Math.min(4.2, rMax);
+  xMin = Math.max(0, xMin);
+  xMax = Math.min(1, xMax);
+  if (rMax - rMin < 1e-8) { rMin -= 1e-6; rMax += 1e-6; }
+  if (xMax - xMin < 1e-8) { xMin -= 1e-6; xMax += 1e-6; }
+  queueRender();
+}, { passive: false });
+
+canvas.addEventListener("pointerdown", e => {
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  const rect = canvas.getBoundingClientRect();
+  const dr = -(e.clientX - lastX) / rect.width * (rMax - rMin);
+  const dx = (e.clientY - lastY) / rect.height * (xMax - xMin);
+  rMin += dr; rMax += dr;
+  xMin += dx; xMax += dx;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  queueRender();
+});
+canvas.addEventListener("pointerup", () => { dragging = false; });
+canvas.addEventListener("pointercancel", () => { dragging = false; });
+canvas.addEventListener("dblclick", e => {
+  const p = screenToWorld(e.clientX, e.clientY);
+  const rw = (rMax - rMin) * 0.25;
+  const xw = (xMax - xMin) * 0.25;
+  rMin = p.r - rw; rMax = p.r + rw;
+  xMin = Math.max(0, p.x - xw); xMax = Math.min(1, p.x + xw);
+  queueRender();
+});
+
+document.getElementById("reset").onclick = () => {
+  rMin = 2.5; rMax = 4.0; xMin = 0; xMax = 1;
+  render();
+};
+render();
 </script>
 </body>
 </html>

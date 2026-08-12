@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Cloth Simulation</title>
+<style>
+:root {
+  --bg: #f2f2f7; --glass: rgba(255,255,255,0.72); --stroke: rgba(0,0,0,0.08);
+  --text: #1c1c1e; --text2: #636366; --accent: #007aff; --blur: 40px; --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000; --glass: rgba(28,28,30,0.75); --stroke: rgba(255,255,255,0.12);
+    --text: #f5f5f7; --text2: #98989d; --accent: #0a84ff;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Hiragino Sans", sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  display: flex; flex-direction: column; -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgba(0,122,255,0.07), transparent 50%),
+    radial-gradient(ellipse 50% 30% at 90% 5%, rgba(175,82,222,0.05), transparent 45%);
+}
+header {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  padding: 12px 20px; background: var(--glass);
+  backdrop-filter: blur(var(--blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+  border-bottom: 1px solid var(--stroke);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand a { color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 500; }
+h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button {
+  appearance: none; border: 1px solid var(--stroke); background: var(--glass);
+  color: var(--text); padding: 6px 12px; border-radius: 980px;
+  font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+}
+button:hover { border-color: var(--accent); }
+button.active { background: var(--accent); border-color: transparent; color: #fff; }
+label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+input[type=range] { width: 80px; accent-color: var(--accent); }
+.info { color: var(--text2); font-size: 12px; }
+main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+canvas {
+  background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><a href="../../">Back</a><h1>Cloth Simulation</h1></div>
+  <div class="controls"><button id="reset">Reset</button><span class="info">Drag points</span></div>
+</header>
+<main><canvas id="c" width="700" height="550" style="cursor:grab"></canvas></main>
+<script>
+const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
+const COLS=25,ROWS=20,SPACING=22,gravity=0.15,friction=0.99;
+let points=[],sticks=[],drag=null;
+function init(){points=[];sticks=[];const ox=(canvas.width-(COLS-1)*SPACING)/2,oy=40;
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const px=ox+x*SPACING,py=oy+y*SPACING;
+    points.push({x:px,y:py,ox:px,oy:py,pinned:y===0&&(x%4===0||x===COLS-1)});}
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const i=y*COLS+x;if(x<COLS-1)sticks.push({a:i,b:i+1,len:SPACING});if(y<ROWS-1)sticks.push({a:i,b:i+COLS,len:SPACING});}}
+function update(){for(const p of points){if(p.pinned)continue;const vx=(p.x-p.ox)*friction,vy=(p.y-p.oy)*friction;p.ox=p.x;p.oy=p.y;p.x+=vx;p.y+=vy+gravity;if(p.y>canvas.height-10){p.y=canvas.height-10;p.oy=p.y;}}
+  for(let k=0;k<4;k++)for(const s of sticks){const a=points[s.a],b=points[s.b];const dx=b.x-a.x,dy=b.y-a.y;const d=Math.hypot(dx,dy)||0.001;const diff=(d-s.len)/d*0.5;const ox=dx*diff,oy=dy*diff;if(!a.pinned){a.x+=ox;a.y+=oy;}if(!b.pinned){b.x-=ox;b.y-=oy;}}}
+function draw(){ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.strokeStyle="rgba(10,132,255,0.5)";ctx.lineWidth=1;ctx.beginPath();
+  for(const s of sticks){const a=points[s.a],b=points[s.b];ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);}ctx.stroke();
+  for(const p of points)if(p.pinned){ctx.beginPath();ctx.arc(p.x,p.y,3.5,0,Math.PI*2);ctx.fillStyle="#ff3b30";ctx.fill();}}
+function loop(){update();draw();requestAnimationFrame(loop);}
+canvas.onmousedown=e=>{const r=canvas.getBoundingClientRect();const mx=(e.clientX-r.left)/r.width*canvas.width,my=(e.clientY-r.top)/r.height*canvas.height;let best=null,bd=40;
+  points.forEach((p,i)=>{const d=Math.hypot(p.x-mx,p.y-my);if(d<bd){bd=d;best=i;}});if(best!==null)drag=best;};
+canvas.onmousemove=e=>{if(drag===null)return;const r=canvas.getBoundingClientRect();const mx=(e.clientX-r.left)/r.width*canvas.width,my=(e.clientY-r.top)/r.height*canvas.height;const p=points[drag];p.x=mx;p.y=my;p.ox=mx;p.oy=my;};
+canvas.onmouseup=()=>{drag=null;};canvas.onmouseleave=()=>{drag=null;};
+document.getElementById("reset").onclick=init;init();requestAnimationFrame(loop);
+</script>
+</body>
+</html>

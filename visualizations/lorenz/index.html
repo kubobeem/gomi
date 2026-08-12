@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Lorenz Attractor</title>
+<style>
+:root {
+  --bg: #f2f2f7; --glass: rgba(255,255,255,0.72); --stroke: rgba(0,0,0,0.08);
+  --text: #1c1c1e; --text2: #636366; --accent: #007aff; --blur: 40px; --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000; --glass: rgba(28,28,30,0.75); --stroke: rgba(255,255,255,0.12);
+    --text: #f5f5f7; --text2: #98989d; --accent: #0a84ff;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Hiragino Sans", sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  display: flex; flex-direction: column; -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgba(0,122,255,0.07), transparent 50%),
+    radial-gradient(ellipse 50% 30% at 90% 5%, rgba(175,82,222,0.05), transparent 45%);
+}
+header {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  padding: 12px 20px; background: var(--glass);
+  backdrop-filter: blur(var(--blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+  border-bottom: 1px solid var(--stroke);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand a { color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 500; }
+h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button {
+  appearance: none; border: 1px solid var(--stroke); background: var(--glass);
+  color: var(--text); padding: 6px 12px; border-radius: 980px;
+  font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+}
+button:hover { border-color: var(--accent); }
+button.active { background: var(--accent); border-color: transparent; color: #fff; }
+label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+input[type=range] { width: 80px; accent-color: var(--accent); }
+.info { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
+main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+canvas {
+  background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><a href="../../">Back</a><h1>Lorenz Attractor</h1></div>
+  <div class="controls"><button id="play" class="active">Pause</button><button id="reset">Reset</button><label>ρ <input type="range" id="rho" min="10" max="40" value="28" step="0.5"></label></div>
+</header>
+<main><canvas id="c" width="800" height="600"></canvas></main>
+<script>
+const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
+let x=0.1,y=0,z=0,rho=28,running=true,ang=0;
+const sigma=10,beta=8/3,pts=[],MAX=8000;
+function step(dt){const dx=sigma*(y-x),dy=x*(rho-z)-y,dz=x*y-beta*z;x+=dx*dt;y+=dy*dt;z+=dz*dt;pts.push({x,y,z});if(pts.length>MAX)pts.shift();}
+function project(p){const s=8,cos=Math.cos(ang),sin=Math.sin(ang);const xr=p.x*cos-p.z*sin,zr=p.x*sin+p.z*cos;return{x:canvas.width/2+xr*s,y:canvas.height/2-(p.y-25)*s*0.85+zr*0.15};}
+function draw(){ctx.fillStyle="rgba(10,10,12,0.08)";ctx.fillRect(0,0,800,600);if(pts.length<2)return;ctx.lineWidth=1.2;
+  for(let i=1;i<pts.length;i++){const a=project(pts[i-1]),b=project(pts[i]),t=i/pts.length;
+    ctx.strokeStyle=`hsla(${200+t*80},70%,${40+t*25}%,${0.25+t*0.55})`;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+  ang+=0.003;}
+function loop(){if(running)for(let i=0;i<12;i++)step(0.005);draw();requestAnimationFrame(loop);}
+document.getElementById("play").onclick=function(){running=!running;this.textContent=running?"Pause":"Play";this.classList.toggle("active",running);};
+document.getElementById("reset").onclick=()=>{x=0.1;y=0;z=0;pts.length=0;ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);};
+document.getElementById("rho").oninput=e=>{rho=+e.target.value;};
+ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);requestAnimationFrame(loop);
+</script>
+</body>
+</html>

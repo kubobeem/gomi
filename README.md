@@ -1,27 +1,33 @@
-# 数学可視化コレクション / Math Visualizations
+# Math Visualizations
 
-Langton's Ant、三重振り子、ローレンツアトラクタ、フラクタル、セルオートマトンなど、ブラウザで動く数学・物理ビジュアライゼーション集。
+Interactive math & physics simulations. Pure HTML/CSS/Canvas — no dependencies.
 
-## デプロイ (Cloudflare Pages)
+## Deploy (Cloudflare Pages)
 
-1. このリポジトリを Cloudflare Pages に接続
-2. Build command: なし
+1. Connect this repo to Cloudflare Pages
+2. Build command: *(empty)*
 3. Output directory: `/`
 
-## 収録 (15種)
+## Visualizations (15)
 
-- visualizations/langtons-ant/ — ラングトンの蟻
-- visualizations/triple-pendulum/ — 三重振り子
-- visualizations/double-pendulum/ — 二重振り子
-- visualizations/lorenz/ — ローレンツアトラクタ
-- visualizations/game-of-life/ — ライフゲーム
-- visualizations/mandelbrot/ — マンデルブロ集合
-- visualizations/julia/ — ジュリア集合
-- visualizations/sierpinski/ — シェルピンスキー
-- visualizations/barnsley-fern/ — バーンズリーのシダ
-- visualizations/logistic-map/ — ロジスティック写像
-- visualizations/fourier/ — フーリエ級数
-- visualizations/lissajous/ — リサジュー曲線
-- visualizations/boids/ — ボイド
-- visualizations/particle-life/ — パーティクルライフ
-- visualizations/verlet-cloth/ — 布シミュレーション
+| Name | Path |
+|------|------|
+| Langton's Ant | `visualizations/langtons-ant/` |
+| Triple Pendulum | `visualizations/triple-pendulum/` |
+| Double Pendulum | `visualizations/double-pendulum/` |
+| Lorenz Attractor | `visualizations/lorenz/` |
+| Game of Life | `visualizations/game-of-life/` |
+| Mandelbrot Set | `visualizations/mandelbrot/` |
+| Julia Set | `visualizations/julia/` |
+| Sierpinski | `visualizations/sierpinski/` |
+| Barnsley Fern | `visualizations/barnsley-fern/` |
+| Logistic Map | `visualizations/logistic-map/` |
+| Fourier Series | `visualizations/fourier/` |
+| Lissajous | `visualizations/lissajous/` |
+| Boids | `visualizations/boids/` |
+| Particle Life | `visualizations/particle-life/` |
+| Cloth (Verlet) | `visualizations/verlet-cloth/` |
+
+## Design
+
+Apple-inspired Liquid Glass UI — system fonts, translucent chrome, light/dark adaptive.

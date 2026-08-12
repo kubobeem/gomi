@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Double Pendulum</title>
+<style>
+:root {
+  --bg: #f2f2f7; --glass: rgba(255,255,255,0.72); --stroke: rgba(0,0,0,0.08);
+  --text: #1c1c1e; --text2: #636366; --accent: #007aff; --blur: 40px; --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000; --glass: rgba(28,28,30,0.75); --stroke: rgba(255,255,255,0.12);
+    --text: #f5f5f7; --text2: #98989d; --accent: #0a84ff;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Hiragino Sans", sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  display: flex; flex-direction: column; -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgba(0,122,255,0.07), transparent 50%),
+    radial-gradient(ellipse 50% 30% at 90% 5%, rgba(175,82,222,0.05), transparent 45%);
+}
+header {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  padding: 12px 20px; background: var(--glass);
+  backdrop-filter: blur(var(--blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+  border-bottom: 1px solid var(--stroke);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand a { color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 500; }
+h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button {
+  appearance: none; border: 1px solid var(--stroke); background: var(--glass);
+  color: var(--text); padding: 6px 12px; border-radius: 980px;
+  font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+}
+button:hover { border-color: var(--accent); }
+button.active { background: var(--accent); border-color: transparent; color: #fff; }
+label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+input[type=range] { width: 80px; accent-color: var(--accent); }
+.info { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
+main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+canvas {
+  background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><a href="../../">Back</a><h1>Double Pendulum</h1></div>
+  <div class="controls"><button id="play" class="active">Pause</button><button id="reset">Reset</button><button id="trail">Trail</button></div>
+</header>
+<main><canvas id="c" width="800" height="600"></canvas></main>
+<script>
+const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
+const cx=400,cy=120,L1=140,L2=140,m1=12,m2=12,g=12;
+let a1=Math.PI/2,a2=Math.PI/2+0.01,w1=0,w2=0,running=true,showTrail=true;
+const trail=[],MAX=500;
+function step(dt){
+  const num1=-g*(2*m1+m2)*Math.sin(a1)-m2*g*Math.sin(a1-2*a2)-2*Math.sin(a1-a2)*m2*(w2*w2*L2+w1*w1*L1*Math.cos(a1-a2));
+  const den=L1*(2*m1+m2-m2*Math.cos(2*a1-2*a2));
+  const alpha1=num1/den;
+  const num2=2*Math.sin(a1-a2)*(w1*w1*L1*(m1+m2)+g*(m1+m2)*Math.cos(a1)+w2*w2*L2*m2*Math.cos(a1-a2));
+  const alpha2=num2/(L2*(2*m1+m2-m2*Math.cos(2*a1-2*a2)));
+  w1+=alpha1*dt;w2+=alpha2*dt;a1+=w1*dt;a2+=w2*dt;
+}
+function draw(){
+  ctx.fillStyle="rgba(10,10,12,0.2)";ctx.fillRect(0,0,800,600);
+  const x1=cx+L1*Math.sin(a1),y1=cy+L1*Math.cos(a1);
+  const x2=x1+L2*Math.sin(a2),y2=y1+L2*Math.cos(a2);
+  if(showTrail){trail.push({x:x2,y:y2});if(trail.length>MAX)trail.shift();
+    ctx.beginPath();trail.forEach((t,i)=>i?ctx.lineTo(t.x,t.y):ctx.moveTo(t.x,t.y));
+    ctx.strokeStyle="rgba(175,82,222,0.5)";ctx.lineWidth=1.5;ctx.stroke();}
+  ctx.strokeStyle="#aeaeb2";ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  [[cx,cy,4,"#007aff"],[x1,y1,10,"#007aff"],[x2,y2,12,"#ff3b30"]].forEach(([x,y,r,c])=>{
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=c;ctx.fill();});
+}
+function loop(){if(running)for(let i=0;i<4;i++)step(0.01);draw();requestAnimationFrame(loop);}
+document.getElementById("play").onclick=function(){running=!running;this.textContent=running?"Pause":"Play";this.classList.toggle("active",running);};
+document.getElementById("reset").onclick=()=>{a1=Math.PI/2+(Math.random()-0.5)*0.3;a2=Math.PI/2+(Math.random()-0.5)*0.5;w1=w2=0;trail.length=0;ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);};
+document.getElementById("trail").onclick=function(){showTrail=!showTrail;if(!showTrail)trail.length=0;};
+ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);requestAnimationFrame(loop);
+</script>
+</body>
+</html>

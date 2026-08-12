@@ -1,55 +1,76 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>バーンズリーのシダ</title>
-  <style>
-    :root { --bg:#0b0f14; --card:#141a22; --border:#1e2733; --text:#e6edf5; --muted:#8b9bb4; --accent:#5b9dff; }
-    * { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
-    header { padding:1rem 1.25rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; }
-    header a { color:var(--accent); text-decoration:none; font-size:0.9rem; }
-    h1 { font-size:1.15rem; font-weight:600; }
-    .controls { display:flex; gap:0.5rem; }
-    button { background:var(--card); border:1px solid var(--border); color:var(--text); padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.85rem; }
-    button:hover { border-color:var(--accent); }
-    main { flex:1; display:flex; align-items:center; justify-content:center; padding:1rem; }
-    canvas { background:#05070a; border-radius:12px; border:1px solid var(--border); max-width:100%; }
-  </style>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Barnsley Fern</title>
+<style>
+:root {
+  --bg: #f2f2f7; --glass: rgba(255,255,255,0.72); --stroke: rgba(0,0,0,0.08);
+  --text: #1c1c1e; --text2: #636366; --accent: #007aff; --blur: 40px; --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000; --glass: rgba(28,28,30,0.75); --stroke: rgba(255,255,255,0.12);
+    --text: #f5f5f7; --text2: #98989d; --accent: #0a84ff;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Hiragino Sans", sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  display: flex; flex-direction: column; -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgba(0,122,255,0.07), transparent 50%),
+    radial-gradient(ellipse 50% 30% at 90% 5%, rgba(175,82,222,0.05), transparent 45%);
+}
+header {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  padding: 12px 20px; background: var(--glass);
+  backdrop-filter: blur(var(--blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+  border-bottom: 1px solid var(--stroke);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand a { color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 500; }
+h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button {
+  appearance: none; border: 1px solid var(--stroke); background: var(--glass);
+  color: var(--text); padding: 6px 12px; border-radius: 980px;
+  font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+}
+button:hover { border-color: var(--accent); }
+button.active { background: var(--accent); border-color: transparent; color: #fff; }
+label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+input[type=range] { width: 80px; accent-color: var(--accent); }
+.info { color: var(--text2); font-size: 12px; }
+main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+canvas {
+  background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+</style>
 </head>
 <body>
-  <header>
-    <div><a href="../../">← コレクション</a><h1>バーンズリーのシダ (IFS)</h1></div>
-    <div class="controls"><button id="more">点を増やす</button></div>
-  </header>
-  <main><canvas id="c" width="600" height="700"></canvas></main>
-  <script>
-    const canvas = document.getElementById("c");
-    const ctx = canvas.getContext("2d");
-    let x=0, y=0, count=0;
-    function next() {
-      const r = Math.random();
-      let nx, ny;
-      if (r < 0.01) { nx = 0; ny = 0.16*y; }
-      else if (r < 0.86) { nx = 0.85*x + 0.04*y; ny = -0.04*x + 0.85*y + 1.6; }
-      else if (r < 0.93) { nx = 0.2*x - 0.26*y; ny = 0.23*x + 0.22*y + 1.6; }
-      else { nx = -0.15*x + 0.28*y; ny = 0.26*x + 0.24*y + 0.44; }
-      x=nx; y=ny;
-    }
-    function add(n) {
-      ctx.fillStyle = "#3dd68c";
-      for (let i=0;i<n;i++) {
-        next();
-        const px = 300 + x * 55;
-        const py = 680 - y * 55;
-        ctx.fillRect(px, py, 1, 1);
-        count++;
-      }
-    }
-    ctx.fillStyle="#05070a"; ctx.fillRect(0,0,600,700);
-    add(40000);
-    document.getElementById("more").onclick = ()=> add(30000);
-  </script>
+<header>
+  <div class="brand"><a href="../../">Back</a><h1>Barnsley Fern</h1></div>
+  <div class="controls"><button id="more">More points</button></div>
+</header>
+<main><canvas id="c" width="600" height="700"></canvas></main>
+<script>
+const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
+let x=0,y=0;
+function next(){const r=Math.random();let nx,ny;
+  if(r<0.01){nx=0;ny=0.16*y;}else if(r<0.86){nx=0.85*x+0.04*y;ny=-0.04*x+0.85*y+1.6;}
+  else if(r<0.93){nx=0.2*x-0.26*y;ny=0.23*x+0.22*y+1.6;}else{nx=-0.15*x+0.28*y;ny=0.26*x+0.24*y+0.44;}
+  x=nx;y=ny;}
+function add(n){ctx.fillStyle="#30d158";for(let i=0;i<n;i++){next();ctx.fillRect(300+x*55,680-y*55,1,1);}}
+ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,600,700);add(40000);
+document.getElementById("more").onclick=()=>add(30000);
+</script>
 </body>
 </html>

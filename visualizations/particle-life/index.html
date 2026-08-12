@@ -44,39 +44,125 @@ button {
   font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
 }
 button:hover { border-color: var(--accent); }
-button.active { background: var(--accent); border-color: transparent; color: #fff; }
-label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
-input[type=range] { width: 80px; accent-color: var(--accent); }
 .info { color: var(--text2); font-size: 12px; }
 main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
 canvas {
   background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
-  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12); cursor: crosshair; touch-action: none;
 }
 </style>
 </head>
 <body>
 <header>
   <div class="brand"><a href="../../">Back</a><h1>Particle Life</h1></div>
-  <div class="controls"><button id="reseed">Reseed</button></div>
+  <div class="controls">
+    <button id="reseed">Reseed</button>
+    <span class="info">Hold mouse to attract · Right-click repel</span>
+  </div>
 </header>
 <main><canvas id="c" width="800" height="550"></canvas></main>
 <script>
-const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
-const TYPES=5,colors=["#ff3b30","#0a84ff","#30d158","#ffd60a","#bf5af2"],N=400;
-let particles=[],matrix=[];
-function reseed(){matrix=Array.from({length:TYPES},()=>Array.from({length:TYPES},()=>(Math.random()*2-1)*0.6));
-  particles=Array.from({length:N},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:0,vy:0,t:Math.floor(Math.random()*TYPES)}));}
-function force(d,a){const r=80;if(d>r||d<0.01)return 0;if(d<15)return -0.4*(15-d)/15;return a*(1-Math.abs(d-40)/40);}
-function update(){for(const p of particles){let fx=0,fy=0;for(const o of particles){if(o===p)continue;
-  let dx=o.x-p.x,dy=o.y-p.y;if(dx>canvas.width/2)dx-=canvas.width;if(dx<-canvas.width/2)dx+=canvas.width;
-  if(dy>canvas.height/2)dy-=canvas.height;if(dy<-canvas.height/2)dy+=canvas.height;
-  const d=Math.hypot(dx,dy),f=force(d,matrix[p.t][o.t]);if(f){fx+=f*dx/d;fy+=f*dy/d;}}
-  p.vx=(p.vx+fx)*0.88;p.vy=(p.vy+fy)*0.88;p.x=(p.x+p.vx+canvas.width)%canvas.width;p.y=(p.y+p.vy+canvas.height)%canvas.height;}}
-function draw(){ctx.fillStyle="rgba(10,10,12,0.25)";ctx.fillRect(0,0,canvas.width,canvas.height);
-  for(const p of particles){ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fillStyle=colors[p.t];ctx.fill();}}
-function loop(){update();draw();requestAnimationFrame(loop);}
-document.getElementById("reseed").onclick=reseed;reseed();requestAnimationFrame(loop);
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const TYPES = 5;
+const colors = ["#ff3b30", "#0a84ff", "#30d158", "#ffd60a", "#bf5af2"];
+const N = 400;
+let particles = [], matrix = [];
+let mouse = null, repel = false;
+
+function reseed() {
+  matrix = Array.from({ length: TYPES }, () =>
+    Array.from({ length: TYPES }, () => (Math.random() * 2 - 1) * 0.6)
+  );
+  particles = Array.from({ length: N }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: 0, vy: 0,
+    t: Math.floor(Math.random() * TYPES)
+  }));
+}
+
+function force(d, a) {
+  const r = 80;
+  if (d > r || d < 0.01) return 0;
+  if (d < 15) return -0.4 * (15 - d) / 15;
+  return a * (1 - Math.abs(d - 40) / 40);
+}
+
+function pointerPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) / r.width * canvas.width,
+    y: (e.clientY - r.top) / r.height * canvas.height
+  };
+}
+
+canvas.addEventListener("pointerdown", e => {
+  mouse = pointerPos(e);
+  repel = e.button === 2;
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", e => {
+  if (mouse) mouse = pointerPos(e);
+});
+canvas.addEventListener("pointerup", () => { mouse = null; });
+canvas.addEventListener("pointercancel", () => { mouse = null; });
+canvas.oncontextmenu = e => e.preventDefault();
+
+function update() {
+  for (const p of particles) {
+    let fx = 0, fy = 0;
+    for (const o of particles) {
+      if (o === p) continue;
+      let dx = o.x - p.x, dy = o.y - p.y;
+      if (dx > canvas.width / 2) dx -= canvas.width;
+      if (dx < -canvas.width / 2) dx += canvas.width;
+      if (dy > canvas.height / 2) dy -= canvas.height;
+      if (dy < -canvas.height / 2) dy += canvas.height;
+      const d = Math.hypot(dx, dy);
+      const f = force(d, matrix[p.t][o.t]);
+      if (f) { fx += f * dx / d; fy += f * dy / d; }
+    }
+    if (mouse) {
+      const dx = mouse.x - p.x, dy = mouse.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const f = (repel ? -1.2 : 0.9) * Math.min(1, 120 / d);
+      fx += f * dx / d;
+      fy += f * dy / d;
+    }
+    p.vx = (p.vx + fx) * 0.88;
+    p.vy = (p.vy + fy) * 0.88;
+    p.x = (p.x + p.vx + canvas.width) % canvas.width;
+    p.y = (p.y + p.vy + canvas.height) % canvas.height;
+  }
+}
+
+function draw() {
+  ctx.fillStyle = "rgba(10,10,12,0.25)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (mouse) {
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, 22, 0, Math.PI * 2);
+    ctx.strokeStyle = repel ? "rgba(255,59,48,0.45)" : "rgba(10,132,255,0.45)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  for (const p of particles) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = colors[p.t];
+    ctx.fill();
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+document.getElementById("reseed").onclick = reseed;
+reseed();
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Mandelbrot Set</title>
+<style>
+:root {
+  --bg: #f2f2f7; --glass: rgba(255,255,255,0.72); --stroke: rgba(0,0,0,0.08);
+  --text: #1c1c1e; --text2: #636366; --accent: #007aff; --blur: 40px; --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000; --glass: rgba(28,28,30,0.75); --stroke: rgba(255,255,255,0.12);
+    --text: #f5f5f7; --text2: #98989d; --accent: #0a84ff;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Hiragino Sans", sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  display: flex; flex-direction: column; -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgba(0,122,255,0.07), transparent 50%),
+    radial-gradient(ellipse 50% 30% at 90% 5%, rgba(175,82,222,0.05), transparent 45%);
+}
+header {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  padding: 12px 20px; background: var(--glass);
+  backdrop-filter: blur(var(--blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+  border-bottom: 1px solid var(--stroke);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand a { color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 500; }
+h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button {
+  appearance: none; border: 1px solid var(--stroke); background: var(--glass);
+  color: var(--text); padding: 6px 12px; border-radius: 980px;
+  font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+}
+button:hover { border-color: var(--accent); }
+button.active { background: var(--accent); border-color: transparent; color: #fff; }
+label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+input[type=range] { width: 80px; accent-color: var(--accent); }
+.info { color: var(--text2); font-size: 12px; }
+main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+canvas {
+  background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><a href="../../">Back</a><h1>Mandelbrot Set</h1></div>
+  <div class="controls"><button id="reset">Reset</button><span class="info">Click zoom · Right-click back</span></div>
+</header>
+<main><canvas id="c" width="800" height="600" style="cursor:crosshair"></canvas></main>
+<script>
+const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
+let xmin=-2.2,xmax=0.8,ymin=-1.2,ymax=1.2;const MAX=120,history=[];
+function mandel(cx,cy){let x=0,y=0,i=0;while(x*x+y*y<=4&&i<MAX){const xt=x*x-y*y+cx;y=2*x*y+cy;x=xt;i++;}return i;}
+function color(iter){if(iter>=MAX)return[8,8,10];const t=iter/MAX;const h=0.62+t*0.3,s=0.65,l=0.12+t*0.5;
+  const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h*12)%12;return l-a*Math.max(Math.min(k-3,9-k,1),-1);};
+  return[f(0)*255,f(8)*255,f(4)*255];}
+function render(){const img=ctx.createImageData(canvas.width,canvas.height),d=img.data,w=canvas.width,h=canvas.height;
+  for(let py=0;py<h;py++){const cy=ymin+(ymax-ymin)*py/h;for(let px=0;px<w;px++){const cx=xmin+(xmax-xmin)*px/w;
+    const[r,g,b]=color(mandel(cx,cy));const i=(py*w+px)*4;d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=255;}}
+  ctx.putImageData(img,0,0);}
+canvas.oncontextmenu=e=>e.preventDefault();
+canvas.onmousedown=e=>{const r=canvas.getBoundingClientRect();const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;
+  const cx=xmin+(xmax-xmin)*px,cy=ymin+(ymax-ymin)*py;
+  if(e.button===2){if(history.length){const p=history.pop();xmin=p.xmin;xmax=p.xmax;ymin=p.ymin;ymax=p.ymax;render();}return;}
+  history.push({xmin,xmax,ymin,ymax});const z=0.35,dx=(xmax-xmin)*z/2,dy=(ymax-ymin)*z/2;
+  xmin=cx-dx;xmax=cx+dx;ymin=cy-dy;ymax=cy+dy;render();};
+document.getElementById("reset").onclick=()=>{xmin=-2.2;xmax=0.8;ymin=-1.2;ymax=1.2;history.length=0;render();};
+render();
+</script>
+</body>
+</html>

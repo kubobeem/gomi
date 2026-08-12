@@ -45,52 +45,142 @@ button {
 }
 button:hover { border-color: var(--accent); }
 button.active { background: var(--accent); border-color: transparent; color: #fff; }
-label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
-input[type=range] { width: 80px; accent-color: var(--accent); }
-.info { color: var(--text2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.info { color: var(--text2); font-size: 12px; }
 main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
 canvas {
   background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
-  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12); cursor: grab; touch-action: none;
 }
+canvas:active { cursor: grabbing; }
 </style>
 </head>
 <body>
 <header>
   <div class="brand"><a href="../../">Back</a><h1>Double Pendulum</h1></div>
-  <div class="controls"><button id="play" class="active">Pause</button><button id="reset">Reset</button><button id="trail">Trail</button></div>
+  <div class="controls">
+    <button id="play" class="active">Pause</button>
+    <button id="reset">Reset</button>
+    <button id="trail">Trail</button>
+    <span class="info">Drag balls to set pose</span>
+  </div>
 </header>
 <main><canvas id="c" width="800" height="600"></canvas></main>
 <script>
-const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
-const cx=400,cy=120,L1=140,L2=140,m1=12,m2=12,g=12;
-let a1=Math.PI/2,a2=Math.PI/2+0.01,w1=0,w2=0,running=true,showTrail=true;
-const trail=[],MAX=500;
-function step(dt){
-  const num1=-g*(2*m1+m2)*Math.sin(a1)-m2*g*Math.sin(a1-2*a2)-2*Math.sin(a1-a2)*m2*(w2*w2*L2+w1*w1*L1*Math.cos(a1-a2));
-  const den=L1*(2*m1+m2-m2*Math.cos(2*a1-2*a2));
-  const alpha1=num1/den;
-  const num2=2*Math.sin(a1-a2)*(w1*w1*L1*(m1+m2)+g*(m1+m2)*Math.cos(a1)+w2*w2*L2*m2*Math.cos(a1-a2));
-  const alpha2=num2/(L2*(2*m1+m2-m2*Math.cos(2*a1-2*a2)));
-  w1+=alpha1*dt;w2+=alpha2*dt;a1+=w1*dt;a2+=w2*dt;
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const ox = 400, oy = 120, L1 = 140, L2 = 140, m1 = 12, m2 = 12, g = 12;
+let a1 = Math.PI / 2, a2 = Math.PI / 2 + 0.01, w1 = 0, w2 = 0;
+let running = true, showTrail = true;
+const trail = [], MAX = 500;
+let dragBob = null;
+
+function step(dt) {
+  const num1 = -g * (2 * m1 + m2) * Math.sin(a1) - m2 * g * Math.sin(a1 - 2 * a2)
+    - 2 * Math.sin(a1 - a2) * m2 * (w2 * w2 * L2 + w1 * w1 * L1 * Math.cos(a1 - a2));
+  const den = L1 * (2 * m1 + m2 - m2 * Math.cos(2 * a1 - 2 * a2));
+  const alpha1 = num1 / den;
+  const num2 = 2 * Math.sin(a1 - a2) * (w1 * w1 * L1 * (m1 + m2) + g * (m1 + m2) * Math.cos(a1) + w2 * w2 * L2 * m2 * Math.cos(a1 - a2));
+  const alpha2 = num2 / (L2 * (2 * m1 + m2 - m2 * Math.cos(2 * a1 - 2 * a2)));
+  w1 += alpha1 * dt; w2 += alpha2 * dt;
+  a1 += w1 * dt; a2 += w2 * dt;
 }
-function draw(){
-  ctx.fillStyle="rgba(10,10,12,0.2)";ctx.fillRect(0,0,800,600);
-  const x1=cx+L1*Math.sin(a1),y1=cy+L1*Math.cos(a1);
-  const x2=x1+L2*Math.sin(a2),y2=y1+L2*Math.cos(a2);
-  if(showTrail){trail.push({x:x2,y:y2});if(trail.length>MAX)trail.shift();
-    ctx.beginPath();trail.forEach((t,i)=>i?ctx.lineTo(t.x,t.y):ctx.moveTo(t.x,t.y));
-    ctx.strokeStyle="rgba(175,82,222,0.5)";ctx.lineWidth=1.5;ctx.stroke();}
-  ctx.strokeStyle="#aeaeb2";ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
-  [[cx,cy,4,"#007aff"],[x1,y1,10,"#007aff"],[x2,y2,12,"#ff3b30"]].forEach(([x,y,r,c])=>{
-    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=c;ctx.fill();});
+
+function pos() {
+  const x1 = ox + L1 * Math.sin(a1), y1 = oy + L1 * Math.cos(a1);
+  const x2 = x1 + L2 * Math.sin(a2), y2 = y1 + L2 * Math.cos(a2);
+  return { x1, y1, x2, y2 };
 }
-function loop(){if(running)for(let i=0;i<4;i++)step(0.01);draw();requestAnimationFrame(loop);}
-document.getElementById("play").onclick=function(){running=!running;this.textContent=running?"Pause":"Play";this.classList.toggle("active",running);};
-document.getElementById("reset").onclick=()=>{a1=Math.PI/2+(Math.random()-0.5)*0.3;a2=Math.PI/2+(Math.random()-0.5)*0.5;w1=w2=0;trail.length=0;ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);};
-document.getElementById("trail").onclick=function(){showTrail=!showTrail;if(!showTrail)trail.length=0;};
-ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);requestAnimationFrame(loop);
+
+function draw() {
+  ctx.fillStyle = "rgba(10,10,12,0.2)";
+  ctx.fillRect(0, 0, 800, 600);
+  const p = pos();
+  if (showTrail) {
+    trail.push({ x: p.x2, y: p.y2 });
+    if (trail.length > MAX) trail.shift();
+    ctx.beginPath();
+    trail.forEach((t, i) => i ? ctx.lineTo(t.x, t.y) : ctx.moveTo(t.x, t.y));
+    ctx.strokeStyle = "rgba(175,82,222,0.5)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "#aeaeb2";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(ox, oy);
+  ctx.lineTo(p.x1, p.y1);
+  ctx.lineTo(p.x2, p.y2);
+  ctx.stroke();
+  [[ox, oy, 4, "#007aff"], [p.x1, p.y1, 12, "#007aff"], [p.x2, p.y2, 14, "#ff3b30"]].forEach(([x, y, r, c]) => {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = c;
+    ctx.fill();
+  });
+}
+
+function loop() {
+  if (running && dragBob === null) for (let i = 0; i < 4; i++) step(0.01);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function pointerPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) / r.width * canvas.width,
+    y: (e.clientY - r.top) / r.height * canvas.height
+  };
+}
+
+canvas.addEventListener("pointerdown", e => {
+  const m = pointerPos(e);
+  const p = pos();
+  const d1 = Math.hypot(m.x - p.x1, m.y - p.y1);
+  const d2 = Math.hypot(m.x - p.x2, m.y - p.y2);
+  if (Math.min(d1, d2) > 30) return;
+  dragBob = d2 <= d1 ? 2 : 1;
+  w1 = w2 = 0;
+  trail.length = 0;
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (dragBob === null) return;
+  const m = pointerPos(e);
+  if (dragBob === 1) {
+    a1 = Math.atan2(m.x - ox, m.y - oy);
+  } else {
+    const p = pos();
+    a2 = Math.atan2(m.x - p.x1, m.y - p.y1);
+  }
+  w1 = w2 = 0;
+});
+
+canvas.addEventListener("pointerup", () => { dragBob = null; });
+canvas.addEventListener("pointercancel", () => { dragBob = null; });
+
+document.getElementById("play").onclick = function () {
+  running = !running;
+  this.textContent = running ? "Pause" : "Play";
+  this.classList.toggle("active", running);
+};
+document.getElementById("reset").onclick = () => {
+  a1 = Math.PI / 2 + (Math.random() - 0.5) * 0.3;
+  a2 = Math.PI / 2 + (Math.random() - 0.5) * 0.5;
+  w1 = w2 = 0;
+  trail.length = 0;
+  ctx.fillStyle = "#0a0a0c";
+  ctx.fillRect(0, 0, 800, 600);
+};
+document.getElementById("trail").onclick = function () {
+  showTrail = !showTrail;
+  if (!showTrail) trail.length = 0;
+};
+
+ctx.fillStyle = "#0a0a0c";
+ctx.fillRect(0, 0, 800, 600);
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>

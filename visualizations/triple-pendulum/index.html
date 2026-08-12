@@ -47,11 +47,13 @@ button:hover { border-color: var(--accent); }
 button.active { background: var(--accent); border-color: transparent; color: #fff; }
 label { color: var(--text2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
 input[type=range] { width: 80px; accent-color: var(--accent); }
+.info { color: var(--text2); font-size: 12px; }
 main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
 canvas {
   background: #0a0a0c; border-radius: var(--radius); border: 1px solid var(--stroke);
-  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.12); cursor: grab; touch-action: none;
 }
+canvas:active { cursor: grabbing; }
 </style>
 </head>
 <body>
@@ -62,68 +64,168 @@ canvas {
     <button id="reset">Reset</button>
     <button id="trail">Trail</button>
     <label>g <input type="range" id="g" min="5" max="25" value="15"></label>
+    <span class="info">Drag balls to set pose</span>
   </div>
 </header>
 <main><canvas id="c" width="800" height="600"></canvas></main>
 <script>
-const canvas=document.getElementById("c"),ctx=canvas.getContext("2d");
-const cx=canvas.width/2,cy=80;
-const L1=100,L2=100,L3=100,m1=10,m2=10,m3=10;
-let g=15;
-let a1=Math.PI/2+0.3,a2=Math.PI/2,a3=Math.PI/2-0.2;
-let w1=0,w2=0,w3=0;
-let running=true,showTrail=true;
-const trail=[],MAX_TRAIL=400;
-function deriv(A1,A2,A3,W1,W2,W3){
-  const s12=Math.sin(A1-A2),c12=Math.cos(A1-A2);
-  const s13=Math.sin(A1-A3),c13=Math.cos(A1-A3);
-  const s23=Math.sin(A2-A3),c23=Math.cos(A2-A3);
-  const M11=(m1+m2+m3)*L1,M12=(m2+m3)*L2*c12,M13=m3*L3*c13;
-  const M21=(m2+m3)*L1*c12,M22=(m2+m3)*L2,M23=m3*L3*c23;
-  const M31=m3*L1*c13,M32=m3*L2*c23,M33=m3*L3;
-  const C1=-(m2+m3)*L2*W2*W2*s12-m3*L3*W3*W3*s13-(m1+m2+m3)*g*Math.sin(A1);
-  const C2=(m2+m3)*L1*W1*W1*s12-m3*L3*W3*W3*s23-(m2+m3)*g*Math.sin(A2);
-  const C3=m3*L1*W1*W1*s13+m3*L2*W2*W2*s23-m3*g*Math.sin(A3);
-  const det=M11*(M22*M33-M23*M32)-M12*(M21*M33-M23*M31)+M13*(M21*M32-M22*M31);
-  if(Math.abs(det)<1e-8)return[0,0,0];
-  const inv11=(M22*M33-M23*M32)/det,inv12=(M13*M32-M12*M33)/det,inv13=(M12*M23-M13*M22)/det;
-  const inv21=(M23*M31-M21*M33)/det,inv22=(M11*M33-M13*M31)/det,inv23=(M13*M21-M11*M23)/det;
-  const inv31=(M21*M32-M22*M31)/det,inv32=(M12*M31-M11*M32)/det,inv33=(M11*M22-M12*M21)/det;
-  return[inv11*C1+inv12*C2+inv13*C3,inv21*C1+inv22*C2+inv23*C3,inv31*C1+inv32*C2+inv33*C3];
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const ox = canvas.width / 2, oy = 80;
+const L1 = 100, L2 = 100, L3 = 100, m1 = 10, m2 = 10, m3 = 10;
+let g = 15;
+let a1 = Math.PI / 2 + 0.3, a2 = Math.PI / 2, a3 = Math.PI / 2 - 0.2;
+let w1 = 0, w2 = 0, w3 = 0;
+let running = true, showTrail = true;
+const trail = [], MAX_TRAIL = 400;
+let dragBob = null;
+
+function deriv(A1, A2, A3, W1, W2, W3) {
+  const s12 = Math.sin(A1 - A2), c12 = Math.cos(A1 - A2);
+  const s13 = Math.sin(A1 - A3), c13 = Math.cos(A1 - A3);
+  const s23 = Math.sin(A2 - A3), c23 = Math.cos(A2 - A3);
+  const M11 = (m1 + m2 + m3) * L1, M12 = (m2 + m3) * L2 * c12, M13 = m3 * L3 * c13;
+  const M21 = (m2 + m3) * L1 * c12, M22 = (m2 + m3) * L2, M23 = m3 * L3 * c23;
+  const M31 = m3 * L1 * c13, M32 = m3 * L2 * c23, M33 = m3 * L3;
+  const C1 = -(m2 + m3) * L2 * W2 * W2 * s12 - m3 * L3 * W3 * W3 * s13 - (m1 + m2 + m3) * g * Math.sin(A1);
+  const C2 = (m2 + m3) * L1 * W1 * W1 * s12 - m3 * L3 * W3 * W3 * s23 - (m2 + m3) * g * Math.sin(A2);
+  const C3 = m3 * L1 * W1 * W1 * s13 + m3 * L2 * W2 * W2 * s23 - m3 * g * Math.sin(A3);
+  const det = M11 * (M22 * M33 - M23 * M32) - M12 * (M21 * M33 - M23 * M31) + M13 * (M21 * M32 - M22 * M31);
+  if (Math.abs(det) < 1e-8) return [0, 0, 0];
+  const inv11 = (M22 * M33 - M23 * M32) / det, inv12 = (M13 * M32 - M12 * M33) / det, inv13 = (M12 * M23 - M13 * M22) / det;
+  const inv21 = (M23 * M31 - M21 * M33) / det, inv22 = (M11 * M33 - M13 * M31) / det, inv23 = (M13 * M21 - M11 * M23) / det;
+  const inv31 = (M21 * M32 - M22 * M31) / det, inv32 = (M12 * M31 - M11 * M32) / det, inv33 = (M11 * M22 - M12 * M21) / det;
+  return [
+    inv11 * C1 + inv12 * C2 + inv13 * C3,
+    inv21 * C1 + inv22 * C2 + inv23 * C3,
+    inv31 * C1 + inv32 * C2 + inv33 * C3
+  ];
 }
-function step(dt){
-  function f(s){const al=deriv(s[0],s[1],s[2],s[3],s[4],s[5]);return[s[3],s[4],s[5],al[0],al[1],al[2]];}
-  const s=[a1,a2,a3,w1,w2,w3];
-  const k1=f(s);
-  const s2=s.map((v,i)=>v+k1[i]*dt/2);const k2=f(s2);
-  const s3=s.map((v,i)=>v+k2[i]*dt/2);const k3=f(s3);
-  const s4=s.map((v,i)=>v+k3[i]*dt);const k4=f(s4);
-  for(let i=0;i<6;i++)s[i]+=(k1[i]+2*k2[i]+2*k3[i]+k4[i])*dt/6;
-  a1=s[0];a2=s[1];a3=s[2];w1=s[3];w2=s[4];w3=s[5];
+
+function step(dt) {
+  function f(s) {
+    const al = deriv(s[0], s[1], s[2], s[3], s[4], s[5]);
+    return [s[3], s[4], s[5], al[0], al[1], al[2]];
+  }
+  const s = [a1, a2, a3, w1, w2, w3];
+  const k1 = f(s);
+  const s2 = s.map((v, i) => v + k1[i] * dt / 2); const k2 = f(s2);
+  const s3 = s.map((v, i) => v + k2[i] * dt / 2); const k3 = f(s3);
+  const s4 = s.map((v, i) => v + k3[i] * dt); const k4 = f(s4);
+  for (let i = 0; i < 6; i++) s[i] += (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]) * dt / 6;
+  a1 = s[0]; a2 = s[1]; a3 = s[2]; w1 = s[3]; w2 = s[4]; w3 = s[5];
 }
-function pos(){
-  const x1=cx+L1*Math.sin(a1),y1=cy+L1*Math.cos(a1);
-  const x2=x1+L2*Math.sin(a2),y2=y1+L2*Math.cos(a2);
-  const x3=x2+L3*Math.sin(a3),y3=y2+L3*Math.cos(a3);
-  return{x1,y1,x2,y2,x3,y3};
+
+function pos() {
+  const x1 = ox + L1 * Math.sin(a1), y1 = oy + L1 * Math.cos(a1);
+  const x2 = x1 + L2 * Math.sin(a2), y2 = y1 + L2 * Math.cos(a2);
+  const x3 = x2 + L3 * Math.sin(a3), y3 = y2 + L3 * Math.cos(a3);
+  return { x1, y1, x2, y2, x3, y3 };
 }
-function draw(){
-  ctx.fillStyle="rgba(10,10,12,0.22)";ctx.fillRect(0,0,canvas.width,canvas.height);
-  const p=pos();
-  if(showTrail){trail.push({x:p.x3,y:p.y3});if(trail.length>MAX_TRAIL)trail.shift();
-    ctx.beginPath();trail.forEach((t,i)=>i?ctx.lineTo(t.x,t.y):ctx.moveTo(t.x,t.y));
-    ctx.strokeStyle="rgba(10,132,255,0.45)";ctx.lineWidth=1.5;ctx.stroke();}
-  ctx.strokeStyle="#aeaeb2";ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(p.x1,p.y1);ctx.lineTo(p.x2,p.y2);ctx.lineTo(p.x3,p.y3);ctx.stroke();
-  const bob=(x,y,r,c)=>{ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=c;ctx.fill();};
-  bob(cx,cy,4,"#007aff");bob(p.x1,p.y1,9,"#007aff");bob(p.x2,p.y2,9,"#af52de");bob(p.x3,p.y3,11,"#ff3b30");
+
+function draw() {
+  ctx.fillStyle = "rgba(10,10,12,0.22)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const p = pos();
+  if (showTrail) {
+    trail.push({ x: p.x3, y: p.y3 });
+    if (trail.length > MAX_TRAIL) trail.shift();
+    ctx.beginPath();
+    trail.forEach((t, i) => i ? ctx.lineTo(t.x, t.y) : ctx.moveTo(t.x, t.y));
+    ctx.strokeStyle = "rgba(10,132,255,0.45)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "#aeaeb2";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(ox, oy);
+  ctx.lineTo(p.x1, p.y1);
+  ctx.lineTo(p.x2, p.y2);
+  ctx.lineTo(p.x3, p.y3);
+  ctx.stroke();
+  const bob = (x, y, r, c) => {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = c;
+    ctx.fill();
+  };
+  bob(ox, oy, 4, "#007aff");
+  bob(p.x1, p.y1, 11, "#007aff");
+  bob(p.x2, p.y2, 11, "#af52de");
+  bob(p.x3, p.y3, 13, "#ff3b30");
 }
-function loop(){if(running)for(let i=0;i<3;i++)step(0.012);draw();requestAnimationFrame(loop);}
-document.getElementById("play").onclick=function(){running=!running;this.textContent=running?"Pause":"Play";this.classList.toggle("active",running);};
-document.getElementById("reset").onclick=()=>{a1=Math.PI/2+(Math.random()-0.5)*0.6;a2=Math.PI/2+(Math.random()-0.5)*0.4;a3=Math.PI/2+(Math.random()-0.5)*0.4;w1=w2=w3=0;trail.length=0;ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);};
-document.getElementById("trail").onclick=function(){showTrail=!showTrail;if(!showTrail)trail.length=0;};
-document.getElementById("g").oninput=e=>{g=+e.target.value;};
-ctx.fillStyle="#0a0a0c";ctx.fillRect(0,0,800,600);
+
+function loop() {
+  if (running && dragBob === null) for (let i = 0; i < 3; i++) step(0.012);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function pointerPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) / r.width * canvas.width,
+    y: (e.clientY - r.top) / r.height * canvas.height
+  };
+}
+
+canvas.addEventListener("pointerdown", e => {
+  const m = pointerPos(e);
+  const p = pos();
+  const d1 = Math.hypot(m.x - p.x1, m.y - p.y1);
+  const d2 = Math.hypot(m.x - p.x2, m.y - p.y2);
+  const d3 = Math.hypot(m.x - p.x3, m.y - p.y3);
+  const best = Math.min(d1, d2, d3);
+  if (best > 28) return;
+  if (best === d3) dragBob = 3;
+  else if (best === d2) dragBob = 2;
+  else dragBob = 1;
+  w1 = w2 = w3 = 0;
+  trail.length = 0;
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (dragBob === null) return;
+  const m = pointerPos(e);
+  if (dragBob === 1) {
+    a1 = Math.atan2(m.x - ox, m.y - oy);
+  } else if (dragBob === 2) {
+    const p = pos();
+    a2 = Math.atan2(m.x - p.x1, m.y - p.y1);
+  } else {
+    const p = pos();
+    a3 = Math.atan2(m.x - p.x2, m.y - p.y2);
+  }
+  w1 = w2 = w3 = 0;
+});
+
+canvas.addEventListener("pointerup", () => { dragBob = null; });
+canvas.addEventListener("pointercancel", () => { dragBob = null; });
+
+document.getElementById("play").onclick = function () {
+  running = !running;
+  this.textContent = running ? "Pause" : "Play";
+  this.classList.toggle("active", running);
+};
+document.getElementById("reset").onclick = () => {
+  a1 = Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+  a2 = Math.PI / 2 + (Math.random() - 0.5) * 0.4;
+  a3 = Math.PI / 2 + (Math.random() - 0.5) * 0.4;
+  w1 = w2 = w3 = 0;
+  trail.length = 0;
+  ctx.fillStyle = "#0a0a0c";
+  ctx.fillRect(0, 0, 800, 600);
+};
+document.getElementById("trail").onclick = function () {
+  showTrail = !showTrail;
+  if (!showTrail) trail.length = 0;
+};
+document.getElementById("g").oninput = e => { g = +e.target.value; };
+
+ctx.fillStyle = "#0a0a0c";
+ctx.fillRect(0, 0, 800, 600);
 requestAnimationFrame(loop);
 </script>
 </body>

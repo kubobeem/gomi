@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>数学可視化コレクション | Math Visualizations</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #141a22;
+      --border: #1e2733;
+      --text: #e6edf5;
+      --muted: #8b9bb4;
+      --accent: #5b9dff;
+      --accent2: #7c5cff;
+      --green: #3dd68c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    header {
+      padding: 3rem 1.5rem 2rem;
+      text-align: center;
+      background: linear-gradient(180deg, #121820 0%, var(--bg) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 30%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p { margin-top: 0.75rem; color: var(--muted); font-size: 1.05rem; }
+    .stats { display: flex; justify-content: center; gap: 2rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .stat { text-align: center; }
+    .stat strong { display: block; font-size: 1.6rem; color: var(--accent); }
+    .stat span { color: var(--muted); font-size: 0.85rem; }
+    main { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+    .filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.75rem; }
+    .filter-btn {
+      background: var(--card); border: 1px solid var(--border); color: var(--muted);
+      padding: 0.4rem 0.9rem; border-radius: 999px; cursor: pointer; font-size: 0.85rem; transition: all 0.15s;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      border-color: var(--accent); color: var(--accent); background: rgba(91, 157, 255, 0.08);
+    }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.1rem;
+    }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+      transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+      text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    }
+    .card:hover {
+      transform: translateY(-3px); border-color: #2a3648; box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+    }
+    .card-preview {
+      height: 140px; background: #0d1218; display: flex; align-items: center; justify-content: center;
+      font-size: 2.8rem; border-bottom: 1px solid var(--border); position: relative; overflow: hidden;
+    }
+    .card-preview::after {
+      content: ""; position: absolute; inset: 0;
+      background: radial-gradient(circle at 30% 40%, rgba(91,157,255,0.12), transparent 60%);
+    }
+    .card-body { padding: 1.1rem 1.2rem 1.25rem; flex: 1; display: flex; flex-direction: column; }
+    .card-body h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.35rem; }
+    .card-body p { color: var(--muted); font-size: 0.88rem; flex: 1; }
+    .tags { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.85rem; }
+    .tag {
+      font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 6px;
+      background: rgba(91,157,255,0.12); color: var(--accent);
+    }
+    .tag.chaos { background: rgba(124,92,255,0.15); color: #a78bfa; }
+    .tag.cellular { background: rgba(61,214,140,0.12); color: var(--green); }
+    .tag.fractal { background: rgba(255,140,90,0.12); color: #ff8c5a; }
+    .tag.physics { background: rgba(255,200,80,0.12); color: #ffc850; }
+    footer {
+      text-align: center; padding: 2rem; color: var(--muted); font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>数学可視化コレクション</h1>
+    <p>Langton's Ant / 三重振り子 / カオス / フラクタル / セルオートマトン など</p>
+    <div class="stats">
+      <div class="stat"><strong id="count">15</strong><span>ビジュアライゼーション</span></div>
+      <div class="stat"><strong>HTML/JS</strong><span>軽量・依存なし</span></div>
+      <div class="stat"><strong>CF Pages</strong><span>静的ホスティング対応</span></div>
+    </div>
+  </header>
+  <main>
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">すべて</button>
+      <button class="filter-btn" data-filter="chaos">カオス</button>
+      <button class="filter-btn" data-filter="cellular">セルオートマトン</button>
+      <button class="filter-btn" data-filter="fractal">フラクタル</button>
+      <button class="filter-btn" data-filter="physics">物理</button>
+      <button class="filter-btn" data-filter="math">数学</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </main>
+  <footer>
+    <p>kubobeem / gomi · <a href="https://github.com/kubobeem/gomi">GitHub</a></p>
+  </footer>
+  <script>
+    const items = [
+      { id: "langtons-ant", title: "ラングトンの蟻", desc: "単純なルールから複雑パターンが生まれるセルオートマトン", emoji: "🐜", tags: ["cellular", "chaos"], path: "visualizations/langtons-ant/" },
+      { id: "triple-pendulum", title: "三重振り子", desc: "カオス的な運動を示す三重振り子シミュレーション", emoji: "🔗", tags: ["physics", "chaos"], path: "visualizations/triple-pendulum/" },
+      { id: "double-pendulum", title: "二重振り子", desc: "古典的なカオス系。感度の高い初期条件依存性", emoji: "⏱️", tags: ["physics", "chaos"], path: "visualizations/double-pendulum/" },
+      { id: "lorenz", title: "ローレンツアトラクタ", desc: "バタフライ効果で有名なカオス力学系", emoji: "🦋", tags: ["chaos", "math"], path: "visualizations/lorenz/" },
+      { id: "game-of-life", title: "ライフゲーム", desc: "Conway の Game of Life。誕生・死・生存のルール", emoji: "🟩", tags: ["cellular"], path: "visualizations/game-of-life/" },
+      { id: "mandelbrot", title: "マンデルブロ集合", desc: "複素平面上の有名なフラクタル", emoji: "🌀", tags: ["fractal", "math"], path: "visualizations/mandelbrot/" },
+      { id: "julia", title: "ジュリア集合", desc: "マンデルブロと対をなすフラクタル集合", emoji: "💠", tags: ["fractal", "math"], path: "visualizations/julia/" },
+      { id: "sierpinski", title: "シェルピンスキーの三角形", desc: "再帰的に構成される古典的フラクタル", emoji: "△", tags: ["fractal"], path: "visualizations/sierpinski/" },
+      { id: "barnsley-fern", title: "バーンズリーのシダ", desc: "IFSによる植物風フラクタル", emoji: "🌿", tags: ["fractal"], path: "visualizations/barnsley-fern/" },
+      { id: "logistic-map", title: "ロジスティック写像", desc: "分岐図で見るカオスへの道", emoji: "📈", tags: ["chaos", "math"], path: "visualizations/logistic-map/" },
+      { id: "fourier", title: "フーリエ級数", desc: "円の重ね合わせで波形を近似", emoji: "🌊", tags: ["math"], path: "visualizations/fourier/" },
+      { id: "lissajous", title: "リサジュー曲線", desc: "直交する振動の合成による美しい曲線", emoji: "∞", tags: ["math", "physics"], path: "visualizations/lissajous/" },
+      { id: "boids", title: "ボイド（群れ）", desc: "Reynolds の群れモデル。分離・整列・結合", emoji: "🐦", tags: ["physics"], path: "visualizations/boids/" },
+      { id: "particle-life", title: "パーティクルライフ", desc: "粒子間相互作用による創発パターン", emoji: "✨", tags: ["chaos", "physics"], path: "visualizations/particle-life/" },
+      { id: "verlet-cloth", title: "布シミュレーション", desc: "Verlet積分による柔らかい布の物理", emoji: "🧵", tags: ["physics"], path: "visualizations/verlet-cloth/" },
+    ];
+    const grid = document.getElementById("grid");
+    document.getElementById("count").textContent = items.length;
+    function render(filter = "all") {
+      grid.innerHTML = "";
+      const filtered = filter === "all" ? items : items.filter(i => i.tags.includes(filter));
+      filtered.forEach(item => {
+        const a = document.createElement("a");
+        a.href = item.path;
+        a.className = "card";
+        a.innerHTML = `
+          <div class="card-preview">${item.emoji}</div>
+          <div class="card-body">
+            <h2>${item.title}</h2>
+            <p>${item.desc}</p>
+            <div class="tags">${item.tags.map(t => `<span class="tag ${t}">${t}</span>`).join("")}</div>
+          </div>`;
+        grid.appendChild(a);
+      });
+    }
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        render(btn.dataset.filter);
+      });
+    });
+    render();
+  </script>
+</body>
+</html>

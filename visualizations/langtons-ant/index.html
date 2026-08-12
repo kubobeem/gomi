@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ラングトンの蟻 | Langton's Ant</title>
+  <style>
+    :root { --bg:#0b0f14; --card:#141a22; --border:#1e2733; --text:#e6edf5; --muted:#8b9bb4; --accent:#5b9dff; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+    header { padding:1rem 1.25rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; }
+    header a { color:var(--accent); text-decoration:none; font-size:0.9rem; }
+    h1 { font-size:1.15rem; font-weight:600; }
+    .controls { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+    button, select {
+      background:var(--card); border:1px solid var(--border); color:var(--text);
+      padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.85rem;
+    }
+    button:hover { border-color:var(--accent); }
+    button.active { background:rgba(91,157,255,0.15); border-color:var(--accent); color:var(--accent); }
+    .info { color:var(--muted); font-size:0.8rem; }
+    main { flex:1; display:flex; align-items:center; justify-content:center; padding:1rem; }
+    canvas { background:#05070a; border-radius:12px; border:1px solid var(--border); max-width:100%; cursor:crosshair; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <a href="../../">← コレクション</a>
+      <h1>ラングトンの蟻</h1>
+    </div>
+    <div class="controls">
+      <button id="play" class="active">一時停止</button>
+      <button id="reset">リセット</button>
+      <button id="step">1ステップ</button>
+      <label class="info">速度 <input type="range" id="speed" min="1" max="200" value="30" style="vertical-align:middle;width:90px"></label>
+      <span class="info" id="steps">steps: 0</span>
+    </div>
+  </header>
+  <main>
+    <canvas id="c" width="800" height="600"></canvas>
+  </main>
+  <script>
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const CELL = 4;
+    const COLS = Math.floor(canvas.width / CELL);
+    const ROWS = Math.floor(canvas.height / CELL);
+    let grid = new Uint8Array(COLS * ROWS);
+    let antX = Math.floor(COLS / 2);
+    let antY = Math.floor(ROWS / 2);
+    let dir = 0;
+    let steps = 0;
+    let running = true;
+    let speed = 30;
+    let last = 0;
+    const dirs = [[0,-1],[1,0],[0,1],[-1,0]];
+    function reset() {
+      grid.fill(0);
+      antX = Math.floor(COLS / 2);
+      antY = Math.floor(ROWS / 2);
+      dir = 0; steps = 0;
+      document.getElementById("steps").textContent = "steps: 0";
+      draw();
+    }
+    function step() {
+      const i = antY * COLS + antX;
+      const state = grid[i];
+      dir = state === 0 ? (dir + 1) % 4 : (dir + 3) % 4;
+      grid[i] = state ^ 1;
+      antX = (antX + dirs[dir][0] + COLS) % COLS;
+      antY = (antY + dirs[dir][1] + ROWS) % ROWS;
+      steps++;
+    }
+    function draw() {
+      const img = ctx.createImageData(canvas.width, canvas.height);
+      const d = img.data;
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const v = grid[y * COLS + x] ? 20 : 245;
+          for (let dy = 0; dy < CELL; dy++) {
+            for (let dx = 0; dx < CELL; dx++) {
+              const px = ((y * CELL + dy) * canvas.width + (x * CELL + dx)) * 4;
+              d[px] = d[px+1] = d[px+2] = v; d[px+3] = 255;
+            }
+          }
+        }
+      }
+      const ax = antX * CELL, ay = antY * CELL;
+      for (let dy = 0; dy < CELL; dy++) {
+        for (let dx = 0; dx < CELL; dx++) {
+          const px = ((ay + dy) * canvas.width + (ax + dx)) * 4;
+          d[px] = 255; d[px+1] = 80; d[px+2] = 60; d[px+3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      document.getElementById("steps").textContent = "steps: " + steps.toLocaleString();
+    }
+    function loop(t) {
+      if (running) {
+        const n = Math.max(1, Math.floor(speed / 5));
+        for (let i = 0; i < n; i++) step();
+        if (t - last > 16) { draw(); last = t; }
+      }
+      requestAnimationFrame(loop);
+    }
+    document.getElementById("play").onclick = function() {
+      running = !running;
+      this.textContent = running ? "一時停止" : "再生";
+      this.classList.toggle("active", running);
+    };
+    document.getElementById("reset").onclick = reset;
+    document.getElementById("step").onclick = () => { step(); draw(); };
+    document.getElementById("speed").oninput = e => { speed = +e.target.value; };
+    reset();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
